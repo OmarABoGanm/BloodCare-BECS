@@ -1,0 +1,3 @@
+const mongoose = require('mongoose'); const { BLOOD_TYPES } = require('../config/bloodTypeConfig');
+const schema = new mongoose.Schema({ donorName: { type: String, required: true, trim: true }, donorReference: { type: String, trim: true }, bloodType: { type: String, enum: BLOOD_TYPES, required: true }, unitsDonated: { type: Number, required: true, min: 1 }, donationDate: { type: Date, default: Date.now }, status: { type: String, enum: ['AVAILABLE','QUARANTINED','USED','DISCARDED'], default: 'AVAILABLE' }, notes: { type: String, trim: true, maxlength: 500 } }, { timestamps: true });
+module.exports = mongoose.model('Donation', schema);

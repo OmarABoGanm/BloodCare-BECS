@@ -1,0 +1,5 @@
+const { body, param }=require('express-validator'); const { BLOOD_TYPES }=require('../config/bloodTypeConfig');
+const bloodParam=[param('bloodType').isIn(BLOOD_TYPES).withMessage('Invalid blood type')];
+const donation=[body('donorName').trim().notEmpty().withMessage('Donor name/reference is required'),body('bloodType').isIn(BLOOD_TYPES).withMessage('Invalid blood type'),body('unitsDonated').isInt({min:1}).withMessage('Units donated must be a positive integer'),body('donationDate').optional().isISO8601().withMessage('Invalid donation date'),body('status').optional().isIn(['AVAILABLE','QUARANTINED','USED','DISCARDED']),body('notes').optional().trim().isLength({max:500})];
+const request=[body('patientReference').trim().notEmpty().withMessage('Patient reference is required'),body('requiredBloodType').isIn(BLOOD_TYPES).withMessage('Invalid blood type'),body('unitsRequired').isInt({min:1}).withMessage('Units required must be a positive integer'),body('urgency').isIn(['NORMAL','URGENT','EMERGENCY']).withMessage('Invalid urgency'),body('notes').optional().trim().isLength({max:500})];
+module.exports={bloodParam,donation,request};

@@ -1,0 +1,11 @@
+jest.mock('../services/inventoryService',()=>({list:jest.fn(),get:jest.fn(),addUnits:jest.fn()})); jest.mock('../services/donationService',()=>({list:jest.fn(),create:jest.fn()})); jest.mock('../services/requestService',()=>({list:jest.fn(),get:jest.fn(),create:jest.fn()}));
+const request=require('supertest'); const app=require('../app'); const inventory=require('../services/inventoryService'); const donations=require('../services/donationService'); const requests=require('../services/requestService');
+beforeEach(()=>{jest.clearAllMocks();inventory.list.mockResolvedValue([{bloodType:'A+',unitsAvailable:10,reservedUnits:0}]);inventory.get.mockResolvedValue({bloodType:'A+',unitsAvailable:10});donations.list.mockResolvedValue([]);requests.list.mockResolvedValue([]);});
+test('health endpoint',async()=>expect((await request(app).get('/api/health')).status).toBe(200));
+test('recipient compatibility',async()=>{const r=await request(app).get('/api/compatibility/recipient/A%2B');expect(r.status).toBe(200);expect(r.body.data.compatibleDonors).toEqual(['A+','A-','O+','O-']);});
+test('donor compatibility',async()=>expect((await request(app).get('/api/compatibility/donor/O-')).body.data.compatibleRecipients).toHaveLength(8));
+test('inventory endpoints',async()=>{expect((await request(app).get('/api/inventory')).status).toBe(200);expect((await request(app).get('/api/inventory/A%2B')).status).toBe(200);});
+test('creates donation',async()=>{donations.create.mockResolvedValue({donation:{bloodType:'A+'},inventory:{unitsAvailable:11}});expect((await request(app).post('/api/donations').send({donorName:'D-1',bloodType:'A+',unitsDonated:1})).status).toBe(201);});
+test('creates request',async()=>{requests.create.mockResolvedValue({requiredBloodType:'O-'});expect((await request(app).post('/api/requests').send({patientReference:'P-1',requiredBloodType:'O-',unitsRequired:1,urgency:'URGENT'})).status).toBe(201);});
+test.each([{bloodType:'X',units:1},{bloodType:'A+',units:0}])('rejects invalid donation %#',async(x)=>expect((await request(app).post('/api/donations').send({donorName:'D',bloodType:x.bloodType,unitsDonated:x.units})).status).toBe(400));
+test('404 response is consistent',async()=>{const r=await request(app).get('/api/nope');expect(r.status).toBe(404);expect(r.body.success).toBe(false);});
