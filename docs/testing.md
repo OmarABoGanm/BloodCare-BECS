@@ -24,3 +24,25 @@ Automated tests cover every compatibility pair for all eight recipient types, de
 | T16 | Mobile layout | 375px width | Usable cards/forms/navigation | Pending | Not run |
 | T17 | Keyboard use | Tab/Space/Enter | Visible focus and operable selector | Pending | Not run |
 | T18 | Unknown route | `/api/nope` | Consistent JSON 404 | Pending | Not run |
+
+## Mass Casualty Emergency Tests
+
+| ID | Scenario | Expected Result |
+|---|---|---|
+| E01 | Unknown types, enough O- | Policy allocation succeeds above reserve |
+| E02 | Unknown types, insufficient O- | Exact shortage returned |
+| E03 | O- reserve reached | Reserve protected and warning returned |
+| E04 | Zero emergency inventory | Zero allocated and critical shortage |
+| E05 | Request exceeds inventory | No projected or persisted negative stock |
+| E06 | Request below inventory | Correct projected remainder |
+| E07 | Casualties `0` or `-1` | Validation error |
+| E08 | Invalid required units | Validation error |
+| E09 | Partially known | Known uses compatibility engine; unknown uses policy |
+| E10 | All known | Existing compatibility engine called |
+| E11 | Simulation | Audit saved; inventory unchanged |
+| E12 | Confirmation | Inventory updated transactionally |
+| E13 | Double confirmation | Second attempt rejected; no second decrement |
+| E14 | Inventory changes after simulation | Confirmation rejected as stale |
+| E15 | O+ fallback disabled | No automatic O+ allocation to unknown recipients |
+
+Manual UI checks: verify the emergency entry in desktop and collapsed mobile navigation; validate all three blood-type modes; simulate sufficient, low, and critical inventory; inspect warning text and before/after table; confirm only after the warning; open history detail; and verify Find Blood, Donation, Inventory, and Compatibility remain unchanged. Real emergency decisions still require qualified clinical and blood-bank review, testing/crossmatching when possible, and local procedures.

@@ -12,6 +12,7 @@ This system is educational and **not for clinical decision-making**. It never re
 - Donation registration with inventory update for `AVAILABLE` donations
 - Inventory status cards, compatibility education, and filtered request/donation histories
 - Responsive, accessible React interface and consistent REST errors
+- Two-stage mass-casualty emergency inventory simulation with auditable confirmation
 - Helmet, restricted CORS, JSON size limits, validation, environment configuration, and no stored secrets
 
 ## Technology Stack
@@ -56,6 +57,13 @@ npm run build
 ## API Overview
 Health, compatibility, inventory, donations, and requests are under `/api`. See `docs/api.md`.
 
+## Mass Casualty Emergency Mode
+The `/emergency` workflow models multi-casualty RBC inventory planning when recipient ABO/RhD types are unknown, partially known, or known. **Simulate Emergency Allocation** records a projected allocation without changing inventory. **Confirm Emergency Allocation** revalidates the inventory snapshot, then updates stock and the emergency audit record within a MongoDB transaction.
+
+Unknown recipients follow the configurable academic policy in `server/config/emergencyBloodPolicy.js`. Its defaults prefer O-negative RBCs, protect a five-unit O-negative reserve, and disable automatic O-positive fallback. Known recipients are allocated by calling the existing authoritative compatibility engine. These values demonstrate inventory preservation and are not official medical rules. Confirmation uses a MongoDB transaction when replica-set support is available; standalone MongoDB uses an event lock, conditional inventory updates, and compensating rollback.
+
+**BloodCare BECS is an academic software prototype. It is not validated or approved for clinical use and must not be used to make real transfusion decisions. Emergency transfusion policies vary by institution and require qualified clinical and blood-bank personnel.**
+
 ## Blood Compatibility Logic
 `server/services/bloodCompatibilityService.js` is the sole authority for RBC ABO/RhD rules. The reverse donor-to-recipient view is derived from the recipient matrix.
 
@@ -66,7 +74,7 @@ Compatible types receive a deterministic score. A sufficient exact match gets th
 `npm run seed` creates missing inventory records with clearly labeled demo quantities. It uses `$setOnInsert` and does not overwrite existing records.
 
 ## Safety Disclaimer
-Academic prototype – not for clinical decision-making. Real transfusion decisions require qualified clinical staff, verified product records, testing, and crossmatching.
+Academic prototype – not for clinical decision-making. Real transfusion decisions require qualified clinical staff, verified product records, institution-specific emergency-release procedures, testing, and crossmatching when possible.
 
 ## Future Improvements
 Authentication/RBAC, audit logging, transactional replica-set writes, component traceability, reservations/fulfillment, barcode support, validated local epidemiology, and formal clinical/regulatory validation.
