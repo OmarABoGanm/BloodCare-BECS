@@ -67,8 +67,17 @@ function calculateAllocation(data, inventory) {
   const allocationStatus = shortage ? 'CRITICAL_SHORTAGE' : allocation.some((x) => x.unitsAllocated > 0 && x.availableAfter <= policy.emergencyInventoryThreshold) ? 'LOW_INVENTORY' : 'SUFFICIENT';
   return { casualties, allocation, inventorySnapshot: before, totalAllocated, shortage, allocationStatus, warnings: [...warnings] };
 }
+function massCasualtyInput(data){const count=data.numberOfCasualties;return{numberOfCasualties:count,eventName:'Mass Casualty Emergency',estimatedUnitsRequired:count,bloodTypeStatus:'ALL_UNKNOWN',severity:'MASS_CASUALTY',massCasualtyOnly:true};}
+function calculateMassCasualtyAllocation(count,inventory){
+  if(!Number.isInteger(count)||count<1||count>1000)throw httpError('Number of casualties must be an integer between 1 and 1000');
+  const before=snapshotInventory(inventory);const stock=before.find(item=>item.bloodType==='O-').unitsAvailable;
+  const totalAllocated=Math.min(count,stock);const shortage=count-totalAllocated;
+  return{casualties:Array.from({length:count},(_,index)=>({casualtyNumber:index+1,bloodType:'UNKNOWN',unitsRequired:1})),inventorySnapshot:before,allocation:[{bloodType:'O-',unitsAllocated:totalAllocated,availableBefore:stock,availableAfter:stock-totalAllocated,reason:'Academic mass-casualty rule: one O-negative RBC unit per casualty; no substitutes'}],totalAllocated,shortage,allocationStatus:shortage?'CRITICAL_SHORTAGE':'SUFFICIENT',warnings:['Academic O-negative-only simulation; manual blood-bank review required']};
+}
 async function simulate(data) {
-  const inventory = await inventoryService.list(); const result = calculateAllocation(data, inventory);
+  const simple=data.massCasualtyOnly===true||(Object.keys(data).length===1&&Object.hasOwn(data,'numberOfCasualties'));
+  if(simple)data=massCasualtyInput(data);
+  const inventory = await inventoryService.list(); const result = simple?calculateMassCasualtyAllocation(data.numberOfCasualties,inventory):calculateAllocation(data, inventory);
   const event = await EmergencyEvent.create({ ...data, casualtyData: result.casualties, allocation: result.allocation, inventorySnapshot: result.inventorySnapshot, totalAllocated: result.totalAllocated, shortage: result.shortage, warnings: result.warnings, allocationStatus: result.allocationStatus, status: 'SIMULATED' });await audit.createAuditLog({action:audit.ACTIONS.EMERGENCY_SIMULATED,entityType:'EMERGENCY_EVENT',entityId:String(event._id),description:`Emergency allocation simulated for ${data.eventName}`,newValue:{status:'SIMULATED',totalAllocated:result.totalAllocated,shortage:result.shortage},metadata:{severity:data.severity,bloodTypeStatus:data.bloodTypeStatus}});
   return formatEvent(event.toObject ? event.toObject() : event);
 }
@@ -129,4 +138,4 @@ async function confirm(id) {
 async function list() { return EmergencyEvent.find().sort({ createdAt: -1 }).lean(); }
 async function get(id) { const event = await EmergencyEvent.findById(id).lean(); return event ? formatEvent(event) : null; }
 
-module.exports = { DISCLAIMER, calculateAllocation, simulate, confirm, list, get };
+module.exports = { DISCLAIMER, calculateAllocation, calculateMassCasualtyAllocation, massCasualtyInput, simulate, confirm, list, get };

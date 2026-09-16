@@ -86,3 +86,39 @@ CSV / Excel / PDF File Download
 ```
 
 Exports are generated in memory and streamed with download headers. They do not create stored files and are read-only for inventory and business records; the only export-side database write is the corresponding AuditLog entry.
+
+## Authentication and privacy extension
+
+```text
+User -> Login -> Authentication Service -> opaque HttpOnly cookie
+                      |
+                      v
+              AuthSession token hash / expiry in MongoDB
+                      |
+                      v
+requireAuth (session + current active User) -> requireRole
+                      |
+                      v
+                Protected Controller
+                      +--> Existing operational service
+                      +--> Request-local actor -> Audit Trail
+```
+
+Bcryptjs hashes User passwords (cost 12); API DTOs and Mongoose serialization never expose passwordHash. Server-side sessions have explicit expiry checks and MongoDB TTL cleanup. Cookie flags are HttpOnly/SameSite=Strict and Secure in production. Mutation headers plus strict Origin/CORS checking protect browser requests against CSRF. ADMIN-only routes validate user changes and serialize last-admin-affecting writes using a MongoDB lease lock.
+
+AsyncLocalStorage supplies actor context to existing auditService calls without changing the compatibility, donation, request or Emergency service signatures. Historical audit records require no destructive migration. Security audit payloads are minimal and recursively sanitized; actor columns are added to existing export formats.
+
+```text
+RESEARCH_STUDENT -> Protected Research API -> Authorization
+                                              |
+                                              v
+                                 Allowlisted MongoDB projection
+                                              |
+                                              v
+                                  De-identification Service
+                                              |
+                                              v
+                           Blood type / units / status / year only
+```
+
+Research summary performs blood-type aggregation without returning donors. Inventory responses for researchers omit identifiers/update dates. Identifiable operational endpoints remain denied rather than exposing rows and hiding fields in React. React AuthProvider uses /auth/me, reusable ProtectedRoute guards, role-aware navigation, login/logout and 401-expiry handling. No authentication token is saved to localStorage.

@@ -1,0 +1,2 @@
+const attempts=new Map();const WINDOW=15*60*1000;
+module.exports=(req,res,next)=>{const now=Date.now();for(const[key,item]of attempts)if(item.until<=now)attempts.delete(key);const key=req.ip;const item=attempts.get(key)||{count:0,until:now+WINDOW};item.count++;attempts.set(key,item);if(item.count>30){res.set('Retry-After',String(Math.ceil((item.until-now)/1000)));return res.status(429).json({success:false,message:'Too many login attempts. Try again later.',errors:[]});}next();};

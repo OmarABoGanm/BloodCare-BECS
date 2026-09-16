@@ -7,6 +7,9 @@ const schema=new mongoose.Schema({
   entityId:{type:String,trim:true},
   description:{type:String,required:true,trim:true,maxlength:500},
   performedBy:{type:String,default:'System User',trim:true,maxlength:120},
+  performedByUserId:{type:String},
+  performedByUsername:{type:String,trim:true,maxlength:80},
+  performedByRole:{type:String},
   oldValue:{type:mongoose.Schema.Types.Mixed},
   newValue:{type:mongoose.Schema.Types.Mixed},
   metadata:{type:mongoose.Schema.Types.Mixed,default:{}}

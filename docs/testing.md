@@ -63,3 +63,46 @@ Manual UI checks: verify the emergency entry in desktop and collapsed mobile nav
 | P11-10 | Refresh Audit Trail after export | Corresponding export action appears |
 
 Export verification: open `.xlsx` files in Excel and `.pdf` files in a PDF reader, confirm readable headers, values, page layout, and meaningful filenames. For CSV, confirm UTF-8 text, one header row, and readable quoted JSON values. Attempting PUT/PATCH/DELETE under `/api/audit/:id` must return 404 and leave the record unchanged.
+
+## HIPAA / Access Control Manual Tests
+
+Create an initial Admin via seed:admin, then create separate BLOOD_BANK_USER and RESEARCH_STUDENT accounts through User Management. Use only demo data and private passwords. These manual scenarios are a checklist; automated tests do not imply a completed clinical/privacy validation.
+
+| ID | Scenario | Expected |
+|---|---|---|
+| HIPAA-01 | Login as ADMIN | All authorized functionality and Users navigation |
+| HIPAA-02 | Login as BLOOD_BANK_USER | Deposit donations and confirm simulated Emergency withdrawal; no Users/Audit/exports |
+| HIPAA-03 | Login as RESEARCH_STUDENT | Research, safe inventory/compatibility only; no donor/patient identifiers |
+| HIPAA-04 | Researcher opens /admin/users | Access Denied; admin data not fetched |
+| HIPAA-05 | Operator calls admin API manually | 403 |
+| HIPAA-06 | Operator registers donation | Stock increases; Audit records actual user ID/username/role |
+| HIPAA-07 | Admin opens Audit Trail and clicks View | New actor identity/role shown; historical records readable; automatic scrolling |
+| HIPAA-08 | Admin exports BECS metadata | Real Excel, PDF and CSV downloads |
+| HIPAA-09 | Admin exports Audit Trail | Formats/filters work; original columns plus actor fields |
+| HIPAA-10 | Inspect research JSON/network response | No name/reference/address/birth date/ID/email/phone/notes; donation year only, no row IDs |
+| HIPAA-11 | Logout; replay previous cookie | Protected API returns 401; frontend redirects to login |
+| HIPAA-12 | Wrong password or nonexistent username | Same generic authentication error |
+| HIPAA-13 | Disable account, change role or reset password | Existing affected sessions lose access |
+| HIPAA-14 | Disable/demote the only active admin | 409; active admin remains |
+| HIPAA-15 | Clear all date filters | Audit loads without invalid-date errors |
+| HIPAA-16 | Expire stored session or supply invalid cookie | 401; no internal/security values exposed |
+| HIPAA-17 | Manually call operational APIs as researcher or guess a record ID | 403, no identifying payload |
+| HIPAA-18 | Cross-origin or missing-header mutation | 403; state unchanged |
+
+### Automated regression strategy
+
+Original compatibility/allocation/service/frontend tests remain. The isolated API-controller suite uses a test-only mocked Admin middleware because its persistence layer was already mocked; there is no runtime auth bypass. Part 11 integration requests use a real MongoDB-backed Admin session. security.test.js uses real middleware, users, hashed passwords and sessions against a disposable MongoDB, covering H01–H46 plus first-admin idempotence, concurrency, cookie/CSRF and live server startup.
+
+Frontend auth tests cover login, generic errors, logout, protected routes, role-aware navigation, researcher access denial/no PHI display, admin user creation, session expiry and continued Admin Part 11 access. Random test passwords exist only in test process memory; no real environment file or production/business database is modified.
+
+### Verified extension results (2026-09-16)
+
+- Baseline: 78 server tests and 23 frontend tests passed.
+- Final regression: 136 server tests (7 suites) and 35 frontend tests (4 files) passed: 171 total, including all original 101 tests.
+- New coverage: 58 server and 12 frontend tests.
+- npm run lint: passed without warnings or errors.
+- npm run build: passed.
+- Live HTTP startup/login test: passed using a disposable MongoDB, not the user's business database.
+- Read-only connection to the configured local MongoDB: succeeded.
+- No live accounts were seeded and personal environment files were not changed.
+- Compatible server dependency security patches applied. npm audit still reports two Moderate findings in the ExcelJS/uuid chain; the suggested breaking downgrade was not applied.

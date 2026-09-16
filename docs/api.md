@@ -65,3 +65,27 @@ Example: `GET /api/audit?action=DONATION_CREATED&entityType=DONATION&startDate=2
 ### Audit Trail
 
 `GET /api/exports/audit-trail?format=xlsx` accepts `xlsx`, `pdf`, or `csv` and supports `action`, `entityType`, `startDate`, and `endDate`. The attachment contains `Timestamp, Action, Entity Type, Entity ID, Description, Performed By, Old Value, New Value`. Excel files include styled columns and filters, PDF files are formatted and paginated, and CSV values are escaped with a UTF-8 BOM. The export itself creates an `AUDIT_TRAIL_EXPORTED` record after selecting rows.
+
+## Authentication / authorization extension
+
+All existing business endpoints listed above now require a valid bloodcare_session cookie. Only GET /api/health and POST /api/auth/login are public. ADMIN and BLOOD_BANK_USER retain donations, requests and Emergency operations. All three roles may read compatibility; RESEARCH_STUDENT receives allowlisted inventory without internal IDs/dates. Audit and all exports require ADMIN. Endpoint URLs and the original success envelopes are preserved.
+
+Use credentialed requests and X-BloodCare-Request: 1 for every POST/PATCH/PUT/DELETE. Unexpected Origin is rejected with 403. Authentication failures return 401; role denial returns 403; validation returns 400; absent records return 404; conflicting identities or last-admin protection return 409; login throttling returns 429; internal failures return a generic 500. Security values and stack traces are never returned.
+
+| Method / endpoint | Authentication / roles | Request | Response |
+|---|---|---|---|
+| POST /api/auth/login | Public, origin/header checked | username (username or email), password | data.user safe profile; HttpOnly session cookie |
+| GET /api/auth/me | All authenticated roles | Cookie | data.user: id, username, fullName, email, role, active, timestamps/lastLogin |
+| POST /api/auth/logout | All authenticated roles | Cookie, mutation header | Session revoked, cookie cleared, success message |
+| GET /api/admin/users | ADMIN | Cookie | data: safe user profile array |
+| POST /api/admin/users | ADMIN | username, fullName, email, role, password | 201 data: created safe user |
+| PATCH /api/admin/users/:id | ADMIN | Any of fullName, email, role, active | data: updated safe user; unknown fields cannot alter credentials |
+| PATCH /api/admin/users/:id/role | ADMIN | role: ADMIN/BLOOD_BANK_USER/RESEARCH_STUDENT | data: updated safe user; prior sessions revoked |
+| PATCH /api/admin/users/:id/status | ADMIN | active: boolean | data: updated safe user; prior sessions revoked |
+| POST /api/admin/users/:id/reset-password | ADMIN | password | data: safe user; prior sessions revoked |
+| GET /api/research/summary | All authenticated roles | Cookie; no PHI expansion supported | data: totalDonations, donationsByBloodType, safe inventory, notice |
+| GET /api/research/donations | All authenticated roles | Optional page, limit (1–100) | data.items: bloodType, unitsDonated, status, donationYear; pagination |
+
+Login gives a generic Invalid username or password error for wrong credentials, unknown or inactive accounts. Cookies expire in eight hours; logout, deactivation, password resets and role updates invalidate relevant sessions. User administration validates known roles and cannot remove the last active administrator. No API returns password or passwordHash. Research donations omit even exact dates and database record IDs; query fields/includePHI/role parameters do not affect the allowlist.
+
+AuditLog keeps performedBy for old records and adds performedByUserId, performedByUsername and performedByRole for authenticated actions. Audit exports retain the original eight columns and append User ID, Username, Role. Excel/PDF/CSV formats and filters remain supported for ADMIN.

@@ -1,0 +1,11 @@
+const router=require('express').Router();const {body,param}=require('express-validator');const {ROLES}=require('../config/roles');const validate=require('../middleware/validate');const service=require('../services/userService');
+const id=[param('id').isMongoId().withMessage('Invalid user ID')];const role=()=>body('role').isIn(ROLES).withMessage('Invalid role');const status=()=>body('active').isBoolean({strict:true}).withMessage('Active must be a boolean');const password=()=>body('password').isString().isLength({min:8,max:72}).withMessage('Invalid password length');
+const profile=[body('fullName').optional().isString().trim().notEmpty().isLength({max:120}),body('email').optional().isEmail().normalizeEmail()];
+const handle=fn=>async(req,res,next)=>{try{res.json({success:true,data:await fn(req)});}catch(error){next(error);}};
+router.get('/users',handle(()=>service.list()));
+router.post('/users',[body('username').isString().trim().matches(/^[a-zA-Z0-9_.-]{3,80}$/).withMessage('Invalid username'),body('fullName').isString().trim().notEmpty().isLength({max:120}),body('email').isEmail().normalizeEmail(),role(),password()],validate,async(req,res,next)=>{try{res.status(201).json({success:true,data:await service.create(req.body)});}catch(error){next(error);}});
+router.patch('/users/:id',[...id,...profile,role().optional(),status().optional()],validate,handle(req=>service.update(req.params.id,req.body)));
+router.patch('/users/:id/role',[...id,role()],validate,handle(req=>service.update(req.params.id,{role:req.body.role})));
+router.patch('/users/:id/status',[...id,status()],validate,handle(req=>service.update(req.params.id,{active:req.body.active})));
+router.post('/users/:id/reset-password',[...id,password()],validate,handle(req=>service.resetPassword(req.params.id,req.body.password)));
+module.exports=router;

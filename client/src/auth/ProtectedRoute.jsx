@@ -1,0 +1,2 @@
+import {Navigate,Outlet,useLocation} from 'react-router-dom';import {useAuth} from './context';import Loading from '../components/Loading';
+export default function ProtectedRoute({roles}){const{user,loading}=useAuth();const location=useLocation();if(loading)return <Loading/>;if(!user)return <Navigate to="/login" replace state={{from:location.pathname}}/>;if(roles&&!roles.includes(user.role))return <div className="container page"><h1>Access Denied</h1><p>Your account does not have permission to access this page.</p></div>;return <Outlet/>;}

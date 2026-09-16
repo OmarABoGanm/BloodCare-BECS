@@ -111,10 +111,62 @@ These features demonstrate Part 11-inspired traceability for academic purposes. 
 Compatible types receive a deterministic score. A sufficient exact match gets the strongest preference; sufficient net inventory (available minus reserved) is next; inventory quantity helps; configured rarity and preservation costs reduce the score. Compatibility is filtered first and never traded for score. Scores support education only—not clinical selection.
 
 ## Demo Data
+### Simplified Mass Casualty Emergency
+
+Enter only the number of casualties (a whole number from 1 to 1000). Each casualty requests one O-negative RBC unit. **Allocate Emergency Units** calculates and automatically confirms the allocation using the existing authorized confirmation endpoint. Only O-negative units are deducted; partial availability allocates the available quantity and displays the shortage. No other blood type is substituted, and this simplified flow does not apply a reserve floor. Failed confirmation does not display a successful inventory update; stale inventory requires a new allocation. Duplicate confirmation is rejected.
+
+The result shows casualties, requested units, available O-negative stock before allocation, allocated units, shortage, and remaining stock. Inventory reloads every five seconds and when the browser window regains focus. The legacy simulation API remains read-only and compatible with existing saved events. All emergency behavior is academic simulation only, not clinical guidance.
+
 `npm run seed` creates missing inventory records with clearly labeled demo quantities. It uses `$setOnInsert` and does not overwrite existing records.
 
 ## Safety Disclaimer
 Academic prototype – not for clinical decision-making. Real transfusion decisions require qualified clinical staff, verified product records, institution-specific emergency-release procedures, testing, and crossmatching when possible.
 
 ## Future Improvements
-Authentication/RBAC, stronger audit integrity controls, component traceability, reservations/fulfillment, barcode support, validated local epidemiology, and formal clinical/regulatory validation.
+MFA, stronger audit integrity controls, component traceability, reservations/fulfillment, barcode support, validated local epidemiology, and formal clinical/regulatory validation.
+
+## Authentication and HIPAA-Oriented Privacy
+
+This extension preserves BECS operations and Part 11 while requiring authenticated access. Login uses an expiring server-side session in an HttpOnly cookie. Backend RBAC independently verifies every protected request; frontend routes and navigation also reflect the current role. Research responses are centrally allowlisted and do not contain donor/patient identifying information. New audit records include the actual user's ID, username and role; historical System User records still display.
+
+| Feature | Admin | Blood Bank User | Research Student |
+|---|---|---|---|
+| User Management | Yes | No | No |
+| Deposit Blood / Donations | Yes | Yes | No |
+| Withdraw through Emergency confirmation | Yes | Yes | No |
+| Blood Requests / Emergency | Yes | Yes | No |
+| View Identifiable Data | Yes | Operational need | No |
+| Inventory / Compatibility | Read | Read | Safe read |
+| Research Data | Yes | Yes | Yes |
+| Audit Trail | Yes | No | No |
+| BECS Metadata / Part 11 Exports | Yes | No | No |
+
+### First administrator setup
+
+Do not overwrite existing environment files. Manually add these values to server/.env (never commit real credentials):
+
+```dotenv
+ADMIN_USERNAME=<your chosen administrator username>
+ADMIN_EMAIL=<your administrator email>
+ADMIN_PASSWORD=<your unique private password>
+```
+
+The password needs 8–72 characters, uppercase, lowercase and a digit, and at most 72 UTF-8 bytes. No AUTH_SECRET is needed because sessions use opaque random tokens rather than JWTs. Existing PORT, MONGODB_URI, CLIENT_URL and NODE_ENV settings remain required.
+
+From the project root:
+
+```powershell
+npm.cmd run install:all
+npm.cmd run seed:admin
+npm.cmd run dev
+```
+
+The browser opens automatically. Sign in at /login with the credentials you configured. The seed does not overwrite an existing active admin or create duplicate admins. Remove ADMIN_PASSWORD from the local environment file after successfully initializing your account if it is no longer needed.
+
+As Admin, open Users (/admin/users) to create one BLOOD_BANK_USER and one RESEARCH_STUDENT using separate private passwords. There are no shipped/default passwords or live test accounts. Use Logout before testing another role. Research accounts land on /research; operational accounts use the existing dashboard. Role/status/password updates revoke affected sessions.
+
+Research Data displays blood-type donation totals, stock and de-identified donation records with years only. Direct donation/request/emergency APIs, Audit Trail and exports are denied to researchers. Empty date filters are supported, and View continues scrolling to Audit record details.
+
+See [privacy documentation](docs/privacy.md), [access matrix](docs/access-control.md), [API documentation](docs/api.md), and [testing documentation](docs/testing.md). Existing anonymous API clients must now sign in and supply the session cookie; state-changing calls also require X-BloodCare-Request: 1. There is no authentication bypass.
+
+**This project demonstrates HIPAA-inspired privacy and access-control principles for academic purposes. It is not a certified or validated HIPAA-compliant production healthcare system.**

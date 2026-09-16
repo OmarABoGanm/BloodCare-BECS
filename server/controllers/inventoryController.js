@@ -1,3 +1,3 @@
-const service = require('../services/inventoryService');
-exports.list = async (req,res,next) => { try { res.json({ success:true, data: await service.list() }); } catch(e){ next(e); } };
-exports.get = async (req,res,next) => { try { const item=await service.get(req.params.bloodType); if(!item) return res.status(404).json({success:false,message:'Inventory record not found',errors:[]}); res.json({success:true,data:item}); } catch(e){next(e);} };
+const service=require('../services/inventoryService');const {safeInventory}=require('../services/deidentificationService');
+exports.list=async(req,res,next)=>{try{const items=await service.list();res.json({success:true,data:req.user.role==='RESEARCH_STUDENT'?items.map(safeInventory):items});}catch(error){next(error);}};
+exports.get=async(req,res,next)=>{try{const item=await service.get(req.params.bloodType);if(!item)return res.status(404).json({success:false,message:'Inventory record not found',errors:[]});res.json({success:true,data:req.user.role==='RESEARCH_STUDENT'?safeInventory(item):item});}catch(error){next(error);}};

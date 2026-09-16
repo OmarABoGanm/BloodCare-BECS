@@ -1,5 +1,15 @@
 import axios from 'axios';
-const api=axios.create({baseURL:import.meta.env.VITE_API_BASE_URL||'http://localhost:5000/api',timeout:10000});
+const api=axios.create({baseURL:import.meta.env.VITE_API_BASE_URL||'http://localhost:5051/api',timeout:10000,withCredentials:true,headers:{'X-BloodCare-Request':'1'}});
+api.interceptors.response.use(response=>response,error=>{if(error.response?.status===401&&!error.config?.url?.includes('/auth/login'))window.dispatchEvent(new Event('bloodcare-auth-expired'));return Promise.reject(error);});
+export const login=data=>api.post('/auth/login',data).then(response=>response.data.data.user);
+export const logout=()=>api.post('/auth/logout');
+export const getCurrentUser=()=>api.get('/auth/me').then(response=>response.data.data.user);
+export const getUsers=()=>api.get('/admin/users').then(response=>response.data.data);
+export const createUser=data=>api.post('/admin/users',data).then(response=>response.data.data);
+export const updateUser=(id,data)=>api.patch('/admin/users/'+id,data).then(response=>response.data.data);
+export const resetUserPassword=(id,password)=>api.post('/admin/users/'+id+'/reset-password',{password}).then(response=>response.data.data);
+export const getResearchSummary=()=>api.get('/research/summary').then(response=>response.data.data);
+export const getResearchDonations=(params={})=>api.get('/research/donations',{params}).then(response=>response.data.data);
 function compactParams(params){return Object.fromEntries(Object.entries(params).filter(([,value])=>value!==''&&value!==null&&value!==undefined));}
 export const getInventory=()=>api.get('/inventory').then(r=>r.data.data); export const getRecipientCompatibility=(type,units=1)=>api.get(`/compatibility/recipient/${encodeURIComponent(type)}?units=${units}`).then(r=>r.data.data); export const getDonorCompatibility=(type)=>api.get(`/compatibility/donor/${encodeURIComponent(type)}`).then(r=>r.data.data); export const createDonation=(data)=>api.post('/donations',data).then(r=>r.data.data); export const getDonations=()=>api.get('/donations').then(r=>r.data.data); export const createRequest=(data)=>api.post('/requests',data).then(r=>r.data.data); export const getRequests=(params={})=>api.get('/requests',{params}).then(r=>r.data.data); export const simulateEmergency=(data)=>api.post('/emergency/simulate',data).then(r=>r.data.data); export const confirmEmergency=(simulationId)=>api.post('/emergency/confirm',{simulationId}).then(r=>r.data.data); export const getEmergencyEvents=()=>api.get('/emergency').then(r=>r.data.data); export const getEmergencyEvent=(id)=>api.get(`/emergency/${id}`).then(r=>r.data.data);export const getAuditLogs=(params={})=>api.get('/audit',{params:compactParams(params)}).then(r=>r.data.data);export const getAuditLog=(id)=>api.get(`/audit/${id}`).then(r=>r.data.data);
 async function download(path,params={}){const response=await api.get(path,{params,responseType:'blob'});const disposition=response.headers['content-disposition']||'';const name=disposition.match(/filename="?([^";]+)"?/)?.[1]||'BloodCare-BECS-Export.csv';const url=URL.createObjectURL(response.data);const link=document.createElement('a');link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);return name;}

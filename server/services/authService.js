@@ -1,0 +1,13 @@
+const crypto=require('node:crypto');const bcrypt=require('bcryptjs');const User=require('../models/User');const Session=require('../models/AuthSession');const audit=require('./auditService');
+const COOKIE='bloodcare_session';const TTL=8*60*60*1000;
+function safeUser(user){return{id:String(user._id),username:user.username,fullName:user.fullName,email:user.email,role:user.role,active:user.active,createdAt:user.createdAt,updatedAt:user.updatedAt,lastLogin:user.lastLogin};}
+function digest(token){return crypto.createHash('sha256').update(token).digest('hex');}
+function passwordValid(password){return typeof password==='string'&&password.length>=8&&password.length<=72&&/[A-Z]/.test(password)&&/[a-z]/.test(password)&&/[0-9]/.test(password)&&Buffer.byteLength(password,'utf8')<=72;}
+function cookieOptions(){return{httpOnly:true,sameSite:'strict',secure:process.env.NODE_ENV==='production',path:'/api',maxAge:TTL};}
+function readToken(req){const cookie=(req.headers.cookie||'').split(';').find(part=>part.trim().startsWith(COOKIE+'='));if(!cookie)return null;const token=cookie.trim().slice(COOKIE.length+1);return/^[a-f0-9]{64}$/.test(token)?token:null;}
+async function issueSession(user){const token=crypto.randomBytes(32).toString('hex');await Session.create({tokenHash:digest(token),userId:user._id,expiresAt:new Date(Date.now()+TTL)});return token;}
+async function resolveSession(token){if(!token)return null;const session=await Session.findOne({tokenHash:digest(token),expiresAt:{$gt:new Date()}});if(!session)return null;const user=await User.findById(session.userId);return user&&user.active?{user,session}:null;}
+async function revoke(token){if(token)await Session.deleteOne({tokenHash:digest(token)});}
+async function login(username,password){const normalized=username.toLowerCase().trim();const user=await User.findOne({$or:[{username:normalized},{email:normalized}]}).select('+passwordHash');const valid=user?await bcrypt.compare(password,user.passwordHash):await bcrypt.compare(password,await dummyHash);if(!user||!user.active||!valid){await audit.createAuditLog({action:'LOGIN_FAILED',entityType:'AUTH',description:'Invalid login attempt',metadata:{}});const error=new Error('Invalid username or password.');error.status=401;throw error;}user.lastLogin=new Date();await user.save();await audit.createAuditLog({action:'LOGIN_SUCCESS',entityType:'USER',entityId:String(user._id),description:'User signed in',performedBy:user.username,performedByUserId:String(user._id),performedByUsername:user.username,performedByRole:user.role});return user;}
+const dummyHash=bcrypt.hash(crypto.randomBytes(32).toString('hex'),12);
+module.exports={COOKIE,TTL,safeUser,digest,passwordValid,cookieOptions,readToken,issueSession,resolveSession,revoke,login};
