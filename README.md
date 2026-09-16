@@ -13,6 +13,7 @@ This system is educational and **not for clinical decision-making**. It never re
 - Inventory status cards, compatibility education, and filtered request/donation histories
 - Responsive, accessible React interface and consistent REST errors
 - Two-stage mass-casualty emergency inventory simulation with auditable confirmation
+- Append-only Part 11-inspired Audit Trail and metadata/audit exports in Excel, PDF, or CSV
 - Helmet, restricted CORS, JSON size limits, validation, environment configuration, and no stored secrets
 
 ## Technology Stack
@@ -43,7 +44,7 @@ Run local MongoDB or create an Atlas database. Copy `server/.env.example` to `se
 npm run seed
 npm run dev
 ```
-Open `http://localhost:5173`. The API defaults to `http://localhost:5000`.
+Open `http://localhost:5174`. The local API is configured at `http://localhost:5051`.
 
 ## Running Tests
 ```bash
@@ -63,6 +64,20 @@ The `/emergency` workflow models multi-casualty RBC inventory planning when reci
 Unknown recipients follow the configurable academic policy in `server/config/emergencyBloodPolicy.js`. Its defaults prefer O-negative RBCs, protect a five-unit O-negative reserve, and disable automatic O-positive fallback. Known recipients are allocated by calling the existing authoritative compatibility engine. These values demonstrate inventory preservation and are not official medical rules. Confirmation uses a MongoDB transaction when replica-set support is available; standalone MongoDB uses an event lock, conditional inventory updates, and compensating rollback.
 
 **BloodCare BECS is an academic software prototype. It is not validated or approved for clinical use and must not be used to make real transfusion decisions. Emergency transfusion policies vary by institution and require qualified clinical and blood-bank personnel.**
+
+## Part 11 Features
+
+### Audit Trail
+Important write operations append trace records with timestamp, action, entity, description, actor, previous/new values, and metadata. Covered actions include donations, donation-driven inventory updates, blood requests and status changes, emergency simulations and confirmations, emergency inventory changes, and both exports. The UI and API intentionally provide no edit or delete operation for audit records.
+
+### Export BECS Metadata
+The Part 11 page downloads a real Excel workbook (`.xlsx`), a formatted PDF report, or an Excel-friendly UTF-8 CSV containing application information, academic disclaimer, supported blood types, current inventory with status, donation/request/emergency/audit counts, and current system modules. Secrets, credentials, connection strings, and `.env` values are never included.
+
+### Export Audit Trail
+The Audit Trail can be exported as a styled Excel workbook, a paginated PDF report, or UTF-8 CSV with timestamp, action, entity type/ID, description, actor, old value, and new value. Server-side action, entity, and date filters are supported. Export generation is read-only for clinical/business data and appends an audit entry describing the export.
+
+### Academic Scope
+These features demonstrate Part 11-inspired traceability for academic purposes. BloodCare BECS is not validated, certified, or represented as compliant with FDA 21 CFR Part 11 or any production regulatory standard.
 
 ## Blood Compatibility Logic
 `server/services/bloodCompatibilityService.js` is the sole authority for RBC ABO/RhD rules. The reverse donor-to-recipient view is derived from the recipient matrix.

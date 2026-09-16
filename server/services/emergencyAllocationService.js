@@ -5,6 +5,7 @@ const inventoryService = require('./inventoryService');
 const compatibility = require('./bloodCompatibilityService');
 const policy = require('../config/emergencyBloodPolicy');
 const { BLOOD_TYPES } = require('../config/bloodTypeConfig');
+const audit=require('./auditService');
 
 const DISCLAIMER = 'Academic prototype – Emergency recommendations are for simulation only and must not be used for clinical decision-making.';
 
@@ -68,7 +69,7 @@ function calculateAllocation(data, inventory) {
 }
 async function simulate(data) {
   const inventory = await inventoryService.list(); const result = calculateAllocation(data, inventory);
-  const event = await EmergencyEvent.create({ ...data, casualtyData: result.casualties, allocation: result.allocation, inventorySnapshot: result.inventorySnapshot, totalAllocated: result.totalAllocated, shortage: result.shortage, warnings: result.warnings, allocationStatus: result.allocationStatus, status: 'SIMULATED' });
+  const event = await EmergencyEvent.create({ ...data, casualtyData: result.casualties, allocation: result.allocation, inventorySnapshot: result.inventorySnapshot, totalAllocated: result.totalAllocated, shortage: result.shortage, warnings: result.warnings, allocationStatus: result.allocationStatus, status: 'SIMULATED' });await audit.createAuditLog({action:audit.ACTIONS.EMERGENCY_SIMULATED,entityType:'EMERGENCY_EVENT',entityId:String(event._id),description:`Emergency allocation simulated for ${data.eventName}`,newValue:{status:'SIMULATED',totalAllocated:result.totalAllocated,shortage:result.shortage},metadata:{severity:data.severity,bloodTypeStatus:data.bloodTypeStatus}});
   return formatEvent(event.toObject ? event.toObject() : event);
 }
 function formatEvent(event) { return { ...event, workflowStatus: event.status, event: { eventName: event.eventName, casualties: event.numberOfCasualties, requestedUnits: event.estimatedUnitsRequired, bloodTypeStatus: event.bloodTypeStatus, severity: event.severity }, totalRequested: event.estimatedUnitsRequired, disclaimer: DISCLAIMER }; }
@@ -121,6 +122,8 @@ async function confirmStandalone(id) {
 }
 async function confirm(id) {
   const confirmed=await (await supportsTransactions()?confirmWithTransaction(id):confirmStandalone(id));
+  await audit.createAuditLog({action:audit.ACTIONS.EMERGENCY_CONFIRMED,entityType:'EMERGENCY_EVENT',entityId:String(confirmed._id),description:`Emergency allocation confirmed for ${confirmed.eventName}`,oldValue:{status:'SIMULATED'},newValue:{status:'CONFIRMED',totalAllocated:confirmed.totalAllocated}});
+  for(const item of confirmed.allocation.filter(x=>x.unitsAllocated>0))await audit.createAuditLog({action:audit.ACTIONS.EMERGENCY_INVENTORY_UPDATED,entityType:'BLOOD_INVENTORY',entityId:item.bloodType,description:`${item.bloodType} inventory decreased by emergency allocation`,oldValue:{unitsAvailable:item.availableBefore},newValue:{unitsAvailable:item.availableAfter},metadata:{emergencyEventId:String(confirmed._id),unitsAllocated:item.unitsAllocated}});
   return formatEvent(confirmed);
 }
 async function list() { return EmergencyEvent.find().sort({ createdAt: -1 }).lean(); }

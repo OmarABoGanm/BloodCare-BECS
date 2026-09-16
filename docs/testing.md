@@ -46,3 +46,20 @@ Automated tests cover every compatibility pair for all eight recipient types, de
 | E15 | O+ fallback disabled | No automatic O+ allocation to unknown recipients |
 
 Manual UI checks: verify the emergency entry in desktop and collapsed mobile navigation; validate all three blood-type modes; simulate sufficient, low, and critical inventory; inspect warning text and before/after table; confirm only after the warning; open history detail; and verify Find Blood, Donation, Inventory, and Compatibility remain unchanged. Real emergency decisions still require qualified clinical and blood-bank review, testing/crossmatching when possible, and local procedures.
+
+## Part 11 Manual Tests
+
+| ID | Scenario | Expected Result |
+|---|---|---|
+| P11-01 | Register donation | `DONATION_CREATED` and donation-driven `INVENTORY_UPDATED` records appear |
+| P11-02 | Create blood request | `BLOOD_REQUEST_CREATED` record appears |
+| P11-03 | Confirm emergency allocation | Confirmation and per-type inventory audit records appear |
+| P11-04 | Open Audit Trail | Actions display newest first with pagination |
+| P11-05 | Filter by `DONATION_CREATED` | Only matching records display |
+| P11-06 | Export BECS Metadata | Excel, PDF, and CSV download with current inventory snapshot and counts |
+| P11-07 | Export Audit Trail | Excel, PDF, and CSV download with expected audit headers and records |
+| P11-08 | Export filtered Audit Trail | Only action/entity/date-matching records are exported |
+| P11-09 | Compare inventory before/after exports | No inventory value changes |
+| P11-10 | Refresh Audit Trail after export | Corresponding export action appears |
+
+Export verification: open `.xlsx` files in Excel and `.pdf` files in a PDF reader, confirm readable headers, values, page layout, and meaningful filenames. For CSV, confirm UTF-8 text, one header row, and readable quoted JSON values. Attempting PUT/PATCH/DELETE under `/api/audit/:id` must return 404 and leave the record unchanged.
